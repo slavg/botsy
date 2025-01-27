@@ -1,0 +1,60 @@
+Q: I want to schedule when my emails go out. Is that possible?
+A: Ava automatically schedules emails based on the most optimal time
+   to send emails to your prospect based on their time zone!
+   While you can't schedule emails yourself, Ava will schedule them
+   at random intervals to bypass spam filters and replicate authentic
+   human behavior.
+
+   Note: Ava doesn't schedule emails to be sent out during nighttime,
+   weekends, and public holidays. She always takes into consideration
+   the prospect's time zone.
+
+Q: What is email warmup and why do I need to wait for it?
+A: Email warm-up is the process of gradually sending an increasing
+   number of emails from a new account to build trust with email
+   service providers and avoid spam filters. It involves ensuring
+   positive interactions, like opens and replies, to establish a strong
+   sender reputation. This process helps ensure your emails are
+   delivered successfully and not flagged as spam.
+
+   While the warmup period can seem long at first, it is important to
+   remember that skipping this process can significantly harm your
+   email deliverability and sender reputation.
+
+Q: Help! Ava Is sending strange messages from my email. Have I been hacked?
+A: No need to panic—this is part of the email warm-up process. Ava sends
+   messages to bot accounts to help improve your email sender reputation.
+   You can identify these warmup emails by looking for the keyword "Artz"
+   within the messages.
+
+   These messages are not sent to real people, so there's no need to worry
+   about any unintended recipients.
+
+Q: I uploaded a CSV file with thousands of leads, but for some reason my
+   leads are not populating. Is there a limit to the amount of leads I can
+   have in my CSV file?
+A: Yes, there is a limit of 1000 leads per CSV file.
+
+   If you have more than 1000 leads, you can duplicate your campaign while
+   keeping the same settings and distribute the leads across multiple CSV
+   files. For instance, if you have 5000 leads, you would create four
+   duplicate campaigns and assign a CSV file with 1000 leads to each.
+
+Q: Help! I've set up my first campaign but it's not turning on.
+A: The answer to that question can vary, however one of the most common
+   reasons for this issue is that the campaign settings are missing some
+   mandatory fields. This would be hinted by a small pop-up every time you
+   try to enable the campaign, so keep an eye out for that!
+
+   If you've filled out all mandatory fields, but are still seeing that
+   error, then you should check your signature settings.
+
+   Go to Mailboxes
+   Click Edit Sender/Signature
+
+   Regardless of whether you're using Plain or HTML Signature, switch to
+   the one you are not using and make sure you've filled out the mandatory
+   fields there too. Once you've done so, simply switch back to your
+   preferred signature style.
+
+   Mandatory fields are marked with a red asterisk.

@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.message.bot import SimpleChatBot
+from app.message.bot import KnowledgeBaseBot
 from app.message.schemas import MessageCreate, MessageResponse, MessageUpdate
 from app.message.service import MessageService
 
 router = APIRouter()
-chat_bot = SimpleChatBot()
+chat_bot = KnowledgeBaseBot()
 
 
 @router.get("", response_model=List[MessageResponse])
