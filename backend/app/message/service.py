@@ -59,7 +59,7 @@ class MessageService:
             ) from e
 
         bot_message = Message(
-            id=str(uuid.uuid4()), content=bot_content, user_id="bot", is_bot=True
+            id=str(uuid.uuid4()), content=bot_content, user_id=user_id, is_bot=True
         )
         self.db.add(bot_message)
 

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom global styles using the primary color */
+@layer base {
+  :root {
+    --color-primary: theme('colors.primary.DEFAULT');
+    --color-primary-50: theme('colors.primary.50');
+    --color-primary-100: theme('colors.primary.100');
+    --color-primary-500: theme('colors.primary.500');
+    --color-primary-600: theme('colors.primary.600');
+    --color-primary-900: theme('colors.primary.900');
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-600;
+  }
+
+  .input-primary:focus {
+    @apply border-primary ring-primary;
+  }
+
+  .text-primary {
+    @apply text-primary;
+  }
+}
