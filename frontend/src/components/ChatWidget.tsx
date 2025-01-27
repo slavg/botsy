@@ -18,7 +18,7 @@ const ChatWidget: React.FC = () => {
     id: 'welcome-message',
     content: "Hi there! I'm Lucy, your AI assistant. How can I help you today?",
     user_id: 'bot',
-    created_at: null,
+    created_at: new Date(0).toISOString(), // Set to earliest date to always be first
     updated_at: null,
     is_bot: true
   };
@@ -32,9 +32,7 @@ const ChatWidget: React.FC = () => {
             .sort((a, b) =>
               new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
             );
-
           setMessages([WELCOME_MESSAGE, ...sortedMessages]);
-
         } catch (error) {
           setMessages([WELCOME_MESSAGE]);
           console.error('Error fetching messages:', error);
@@ -53,17 +51,14 @@ const ChatWidget: React.FC = () => {
   const handleInputChange = (value: string, isEditing: boolean = false) => {
     if (value.length > 2000) {
       setInputError('Maximum message length is 2000 characters');
-
       if (isEditing) {
         setEditContent(value.slice(0, 2000));
       } else {
         setNewMessage(value.slice(0, 2000));
       }
-
       setTimeout(() => setInputError(''), 3000);
     } else {
       setInputError('');
-
       if (isEditing) {
         setEditContent(value);
       } else {
@@ -73,23 +68,42 @@ const ChatWidget: React.FC = () => {
   };
 
   const handleSend = async () => {
-    setInputError('');
+      setInputError('');
+      if (!newMessage.trim() || !token) return;
 
-    if (!newMessage.trim() || !token) return;
+      if (newMessage.length > 2000) {
+        setInputError('Maximum message length is 2000 characters');
+        return;
+      }
 
-    if (newMessage.length > 2000) {
-      setInputError('Maximum message length is 2000 characters');
-      return;
-    }
+      try {
 
-    try {
-      const messages = await api.sendMessage(newMessage, token);
-      setMessages(prev => [...prev, ...messages]);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
+        const newMessages = await api.sendMessage(newMessage, token);
+
+        setMessages(prev => {
+          // Keep welcome message separate
+          const currentMessages = prev.filter(msg => msg.id !== 'welcome-message');
+
+          // Combine existing messages with new ones
+          const allMessages = [...currentMessages, ...newMessages];
+
+          // Sort all messages by creation date
+          const sortedMessages = allMessages.sort((a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateA - dateB;
+          });
+
+          // Return with welcome message at the start
+          return [WELCOME_MESSAGE, ...sortedMessages];
+        });
+
+        setNewMessage('');
+      } catch (error) {
+        console.error('Error sending message:', error);
+        setInputError('Failed to send message');
+      }
+    };
 
   const handleEdit = async (messageId: string) => {
     if (!editContent.trim() || !token) return;
@@ -100,14 +114,30 @@ const ChatWidget: React.FC = () => {
     }
 
     try {
-      const data = await api.updateMessage(messageId, editContent, token);
-      setMessages(prev => prev.map(msg =>
-        msg.id === messageId ? data : msg
-      ));
+      const updatedMessage = await api.updateMessage(messageId, editContent, token);
+
+      setMessages(prev => {
+        const currentMessages = prev.filter(msg => msg.id !== messageId);
+        return [...currentMessages, updatedMessage]
+          .sort((a, b) =>
+            new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+          );
+      });
+
+      // Reset editing state
       setEditingId(null);
       setEditContent('');
+
+      // Fetch messages to get the updated bot response
+      const fetchedMessages = await api.getMessages(token);
+      const sortedMessages = fetchedMessages
+        .sort((a, b) =>
+          new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+        );
+      setMessages([WELCOME_MESSAGE, ...sortedMessages]);
     } catch (error) {
       console.error('Error editing message:', error);
+      setInputError('Failed to update message');
     }
   };
 
@@ -115,14 +145,31 @@ const ChatWidget: React.FC = () => {
     if (!token) return;
     try {
       await api.deleteMessage(messageId, token);
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+
+      // Remove both the user message and the next bot message
+      setMessages(prev => {
+        const currentMessages = [...prev];
+        const userMsgIndex = currentMessages.findIndex(msg => msg.id === messageId);
+
+        if (userMsgIndex !== -1) {
+          const nextBotMsgIndex = userMsgIndex + 1;
+          if (nextBotMsgIndex < currentMessages.length && currentMessages[nextBotMsgIndex].is_bot) {
+            currentMessages.splice(userMsgIndex, 2); // Remove both messages
+          } else {
+            currentMessages.splice(userMsgIndex, 1); // Remove only user message
+          }
+        }
+
+        return currentMessages;
+      });
     } catch (error) {
       console.error('Error deleting message:', error);
     }
   };
 
+  // Get latest user message ID for edit/delete buttons
   const latestUserMessageId = messages
-    .filter(msg => !msg.is_bot)
+    .filter(msg => msg && msg.id !== 'welcome-message' && !msg.is_bot)
     .sort((a, b) =>
       new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
     )[0]?.id;
@@ -182,89 +229,96 @@ const ChatWidget: React.FC = () => {
 
           <div className="space-y-4 px-4">
             {messages.map(message => {
-              const timestamp = new Date(message.updated_at || message.created_at);
-              const isToday = new Date().toDateString() === timestamp.toDateString();
-              const timeStr = message.created_at
-                ? (isToday
-                  ? timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  : timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
-                  timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-                : '';
+                if (!message) return null; // Skip if message is undefined
 
-              return (
-                <div key={message.id} className="flex items-start space-x-2">
-                  {message.is_bot && (
-                    <div className="flex-shrink-0">
-                      <img src="/static/lucy.png" alt="Lucy" className="w-6 h-6 rounded-full" />
-                    </div>
-                  )}
-                  <div className={`flex flex-1 ${message.is_bot ? 'justify-start' : 'justify-end'}`}>
-                    <div className={`max-w-[70%] rounded-2xl p-3 ${
-                      message.is_bot ? 'bg-blue-50 text-gray-800' : 'bg-primary text-white'
-                    }`}>
-                      <div>
-                        {editingId === message.id ? (
-                          <div className="space-y-2">
-                            <input
-                              type="text"
-                              value={editContent}
-                              onChange={(e) => handleInputChange(e.target.value, true)}
-                              className="w-full p-1 text-black rounded border"
-                            />
-                            {inputError && (
-                              <div className="text-red-500 text-sm">
-                                {inputError}
-                              </div>
-                            )}
-                            <div className="flex justify-end space-x-2">
-                              <button
-                                onClick={() => handleEdit(message.id)}
-                                className="text-white bg-green-500 px-2 py-1 rounded text-sm"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingId(null);
-                                  setEditContent('');
-                                }}
-                                className="text-white bg-gray-500 px-2 py-1 rounded text-sm"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <p>{message.content}</p>
-                            <p className="text-xs mt-1 opacity-70">{timeStr}</p>
-                            {!message.is_bot && message.id === latestUserMessageId && (
-                              <div className="flex justify-end space-x-2 mt-2">
+                const timestamp = message.created_at
+                  ? new Date(message.updated_at || message.created_at)
+                  : message.id === 'welcome-message'
+                    ? new Date()
+                    : new Date();
+
+                const isToday = new Date().toDateString() === timestamp.toDateString();
+                const timeStr = message.id === 'welcome-message'
+                  ? ''
+                  : (isToday
+                    ? timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+                      timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+                return (
+                  <div key={message.id} className="flex items-start space-x-2">
+                    {message.is_bot && (
+                      <div className="flex-shrink-0">
+                        <img src="/static/lucy.png" alt="Lucy" className="w-6 h-6 rounded-full" />
+                      </div>
+                    )}
+                    <div className={`flex flex-1 ${message.is_bot ? 'justify-start' : 'justify-end'}`}>
+                      <div className={`max-w-[70%] rounded-2xl p-3 ${
+                        message.is_bot ? 'bg-blue-50 text-gray-800' : 'bg-primary text-white'
+                      }`}>
+                        <div>
+                          {editingId === message.id ? (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={editContent}
+                                onChange={(e) => handleInputChange(e.target.value, true)}
+                                className="w-full p-1 text-black rounded border"
+                              />
+                              {inputError && (
+                                <div className="text-red-500 text-sm">
+                                  {inputError}
+                                </div>
+                              )}
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => handleEdit(message.id)}
+                                  className="text-white bg-green-500 px-2 py-1 rounded text-sm"
+                                >
+                                  Save
+                                </button>
                                 <button
                                   onClick={() => {
-                                    setEditingId(message.id);
-                                    setEditContent(message.content);
+                                    setEditingId(null);
+                                    setEditContent('');
                                   }}
-                                  className="text-white hover:text-gray-200"
+                                  className="text-white bg-gray-500 px-2 py-1 rounded text-sm"
                                 >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(message.id)}
-                                  className="text-white hover:text-gray-200"
-                                >
-                                  <Trash2 size={16} />
+                                  Cancel
                                 </button>
                               </div>
-                            )}
-                          </>
-                        )}
+                            </div>
+                          ) : (
+                            <>
+                              <p>{message.content}</p>
+                              {timeStr && <p className="text-xs mt-1 opacity-70">{timeStr}</p>}
+                              {!message.is_bot && message.id === latestUserMessageId && (
+                                <div className="flex justify-end space-x-2 mt-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingId(message.id);
+                                      setEditContent(message.content);
+                                    }}
+                                    className="text-white hover:text-gray-200"
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(message.id)}
+                                    className="text-white hover:text-gray-200"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             <div ref={messagesEndRef} />
           </div>
         </div>

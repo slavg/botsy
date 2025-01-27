@@ -62,8 +62,29 @@ export const updateMessage = async (id: string, content: string, token: string) 
     },
     body: JSON.stringify({ content }),
   });
-  if (!response.ok) throw new Error('Failed to update message');
-  return response.json();
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to update message');
+  }
+
+  const data = await response.json();
+
+  // If the backend returns just the user message, get the messages again to get the bot reply
+  if (!data.bot_message) {
+    const updatedMessages = await getMessages(token);
+    const userMsg = updatedMessages.find(msg => msg.id === id);
+    const botMsg = updatedMessages.find(msg =>
+      msg.is_bot &&
+      new Date(msg.created_at) > new Date(userMsg.created_at)
+    );
+    return {
+      user_message: userMsg,
+      bot_message: botMsg
+    };
+  }
+
+  return data;
 };
 
 export const deleteMessage = async (id: string, token: string) => {
