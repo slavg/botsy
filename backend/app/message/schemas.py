@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, ConfigDict, Field, constr
 
 
 class MessageBase(BaseModel):
@@ -25,5 +25,4 @@ class MessageResponse(MessageBase):
     updated_at: Optional[datetime]
     is_bot: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

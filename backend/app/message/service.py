@@ -13,8 +13,32 @@ class MessageService:
         self.db = db
         self.chat_bot = chat_bot
 
+    async def get_latest_user_message(
+        self, user_id: str, message_id: str = None
+    ) -> Message | None:
+        query = (
+            select(Message)
+            .where(Message.user_id == user_id)
+            .order_by(desc(Message.created_at))
+            .limit(1)
+        )
+        result = await self.db.execute(query)
+        latest_message = result.scalar_one_or_none()
+
+        if not latest_message or (message_id and latest_message.id != message_id):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Can only modify your latest message: {message_id}",
+            )
+
+        return latest_message
+
     async def get_messages(self, user_id: str) -> list[Message]:
-        query = select(Message).order_by(desc(Message.created_at))
+        query = (
+            select(Message)
+            .where(Message.user_id == user_id)
+            .order_by(desc(Message.created_at))
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
@@ -48,34 +72,16 @@ class MessageService:
     async def update_message(
         self, message_id: str, message_update, user_id: str
     ) -> Message:
-        query = select(Message).where(Message.id == message_id)
-        result = await self.db.execute(query)
-        message = result.scalar_one_or_none()
-
-        if not message:
-            raise HTTPException(status_code=404, detail="Message not found")
-        if message.user_id != user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to update this message"
-            )
-
+        # Only latest user message can be modified
+        message = await self.get_latest_user_message(user_id, message_id)
         message.content = message_update.content
         await self.db.commit()
         await self.db.refresh(message)
         return message
 
     async def delete_message(self, message_id: str, user_id: str):
-        query = select(Message).where(Message.id == message_id)
-        result = await self.db.execute(query)
-        message = result.scalar_one_or_none()
-
-        if not message:
-            raise HTTPException(status_code=404, detail="Message not found")
-        if message.user_id != user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to delete this message"
-            )
-
+        # Only latest user message can be deleted
+        message = await self.get_latest_user_message(user_id, message_id)
         await self.db.delete(message)
         await self.db.commit()
         return {"ok": True}
